@@ -45,6 +45,18 @@ m_colCount{cols}
 	}
 }
 
+void LifeBoard::randomise(std::default_random_engine &generator)
+{
+	// Create a uniform distribution for the states on the board.
+	static std::uniform_int_distribution<int> distribution(0,static_cast<int>(LifeBoard::MAXSTATE)-1);
+
+	for(auto &cell : m_boardData)
+	{
+		cell = static_cast<LifeBoard::State>(distribution(generator));
+	}
+
+}
+
 
 int LifeBoard::getRows() const
 {

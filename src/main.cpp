@@ -40,6 +40,8 @@ int main(int argc, char const *argv[])
         ("column-count,c", boost::program_options::value<int>(&rowCount)->default_value(50), "The number of rows in the board.")
         ("row-count,r", boost::program_options::value<int>(&colCount)->default_value(50), "The number of columns in the board.")
         ("output-frequency,f", boost::program_options::value<int>(&outputFrequency)->default_value(100), "The pause time between outputting the updated board")
+        ("oscillator", "Initialise with an oscillator")
+        ("glider" , " Initialise with a glider")
         ("help,h", "produce help message");
 
     // Make arguments available to program.
@@ -55,14 +57,46 @@ int main(int argc, char const *argv[])
     }
 
 
-    // Create a board that represents the current state of the system.
-	LifeBoard boardCurrent(rowCount, colCount, generator);
+    // Create a board that represents the current state of the system , initially it will be all dead.
+	LifeBoard boardCurrent(rowCount, colCount, LifeBoard::Dead);
+
+	/*
+	 * It is useful to know what the ``centre'' cell is so we can place any specific configurations
+	 * as close to that point is possible we deliberately use integer division to floor this value.
+	 */
+	 int centreRow = rowCount/2;
+	 int centreCol = colCount/2;
+
+
+	// If the user requested an example behaviour then display that.
+	if(vm.count("oscillator"))
+	{	
+		/*
+		 * For an oscillator we can just place a blinker in the centre of the board.
+		 * The easiest way to do this is just a column of three alive cells.
+		 */
+		boardCurrent(centreRow-1, centreCol) = LifeBoard::Alive;
+		boardCurrent(centreRow, centreCol) 	 = LifeBoard::Alive;
+		boardCurrent(centreRow+1 ,centreCol) = LifeBoard::Alive;
+	}
+	else if(vm.count("glider"))
+	{
+		// For a glider we just place it in the middle of the board.
+		boardCurrent(centreRow-1, centreCol) 	= LifeBoard::Alive;
+		boardCurrent(centreRow, centreCol+1) 	= LifeBoard::Alive;
+		boardCurrent(centreRow+1, centreCol-1) 	= LifeBoard::Alive;
+		boardCurrent(centreRow+1, centreCol) 	= LifeBoard::Alive;
+		boardCurrent(centreRow+1,centreCol+1) 	= LifeBoard::Alive;
+	}
+	// Otherwise just use a random configuration.
+	else
+	{
+		boardCurrent.randomise(generator);
+	}
 
 	// Create a board that represents the updated state of the system making sure it is initially the same as the current board.
 	LifeBoard boardUpdated = boardCurrent;
 
-	// Variable to hold the state of the 
-	RunState runState = Running;
 
 /*************************************************************************************************************************
 ************************************************* Main Loop *************************************************************

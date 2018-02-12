@@ -79,6 +79,12 @@ public:
 	LifeBoard(int rows, int cols, std::default_random_engine &generator);
 
 	/**
+	 *\brief Randomises the cells in the board with equal probability of being dead or alive.
+	 *\param std::deafult_random_engine reference for random number generation.
+	 */
+	void randomise(std::default_random_engine &generator);
+
+	/**
 	 *\brief Getter for the number of rows.
 	 *\return Integer value representing the number of rows.
 	 */
