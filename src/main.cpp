@@ -101,7 +101,7 @@ int main(int argc, char const *argv[])
 /*************************************************************************************************************************
 ************************************************* Main Loop *************************************************************
 *************************************************************************************************************************/
-
+	int playerChoice;
 	
 	while(true)
 	{
@@ -111,7 +111,7 @@ int main(int argc, char const *argv[])
 		// Print the updated board.
 		std::cout << boardUpdated;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+		
 
 
 		// Move the cursor back to the top of the board.
