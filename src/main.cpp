@@ -5,14 +5,7 @@
 #include <thread>
 #include <chrono>
 #include <boost/program_options.hpp>
-
-enum RunState
-{
-	Running,
-	Paused,
-	Stopped,
-	MAXRUNSTATE,
-};
+#include <fstream>
 
 int main(int argc, char const *argv[])
 {
@@ -41,8 +34,9 @@ int main(int argc, char const *argv[])
         ("row-count,r", boost::program_options::value<int>(&colCount)->default_value(50), "The number of columns in the board.")
         ("output-frequency,f", boost::program_options::value<int>(&outputFrequency)->default_value(100), "The pause time between outputting the updated board")
         ("oscillator", "Initialise with an oscillator")
-        ("glider" , " Initialise with a glider")
-        ("help,h", "produce help message");
+        ("glider", "Initialise with a glider")
+        ("sink", "Initialise with a sink")
+        ("help,h", "Produce help message");
 
     // Make arguments available to program.
     boost::program_options::variables_map vm;
@@ -57,80 +51,108 @@ int main(int argc, char const *argv[])
     }
 
 
+    
+    std::ofstream comOutput("COM.dat",std::ofstream::out);
+    
+
     // Create a board that represents the current state of the system , initially it will be all dead.
-	LifeBoard boardCurrent(rowCount, colCount, LifeBoard::Dead);
+    LifeBoard boardCurrent(rowCount, colCount, LifeBoard::Dead);
 
-	/*
-	 * It is useful to know what the ``centre'' cell is so we can place any specific configurations
-	 * as close to that point is possible we deliberately use integer division to floor this value.
-	 */
-	 int centreRow = rowCount/2;
-	 int centreCol = colCount/2;
+    /*
+     * It is useful to know what the ``centre'' cell is so we can place any specific configurations
+     * as close to that point is possible we deliberately use integer division to floor this value.
+     */
+     int centreRow = rowCount/2;
+     int centreCol = colCount/2;
 
 
-	// If the user requested an example behaviour then display that.
-	if(vm.count("oscillator"))
-	{	
-		/*
-		 * For an oscillator we can just place a blinker in the centre of the board.
-		 * The easiest way to do this is just a column of three alive cells.
-		 */
-		boardCurrent(centreRow-1, centreCol) = LifeBoard::Alive;
-		boardCurrent(centreRow, centreCol) 	 = LifeBoard::Alive;
-		boardCurrent(centreRow+1 ,centreCol) = LifeBoard::Alive;
-	}
-	else if(vm.count("glider"))
-	{
-		// For a glider we just place it in the middle of the board.
-		boardCurrent(centreRow-1, centreCol) 	= LifeBoard::Alive;
-		boardCurrent(centreRow, centreCol+1) 	= LifeBoard::Alive;
-		boardCurrent(centreRow+1, centreCol-1) 	= LifeBoard::Alive;
-		boardCurrent(centreRow+1, centreCol) 	= LifeBoard::Alive;
-		boardCurrent(centreRow+1,centreCol+1) 	= LifeBoard::Alive;
-	}
-	// Otherwise just use a random configuration.
-	else
-	{
-		boardCurrent.randomise(generator);
-	}
+    // If the user requested an example behaviour then display that.
+    if(vm.count("oscillator"))
+    {   
+        /*
+         * For an oscillator we can just place a blinker in the centre of the board.
+         * The easiest way to do this is just a column of three alive cells.
+         */
+        boardCurrent(centreRow-1, centreCol) = LifeBoard::Alive;
+        boardCurrent(centreRow, centreCol)   = LifeBoard::Alive;
+        boardCurrent(centreRow+1 ,centreCol) = LifeBoard::Alive;
+    }
+    else if(vm.count("glider"))
+    {
+        // For a glider we just place it in the middle of the board.
+        boardCurrent(centreRow-1, centreCol)    = LifeBoard::Alive;
+        boardCurrent(centreRow, centreCol+1)    = LifeBoard::Alive;
+        boardCurrent(centreRow+1, centreCol-1)  = LifeBoard::Alive;
+        boardCurrent(centreRow+1, centreCol)    = LifeBoard::Alive;
+        boardCurrent(centreRow+1,centreCol+1)   = LifeBoard::Alive;
+    }
+    else if(vm.count("sink"))
+    {
+        // For a sink we just place 4 live cells in a square in the middle of the board.
+        boardCurrent(centreRow, centreCol)      = LifeBoard::Alive;
+        boardCurrent(centreRow, centreCol+1)    = LifeBoard::Alive;
+        boardCurrent(centreRow+1, centreCol)    = LifeBoard::Alive;
+        boardCurrent(centreRow+1, centreCol+1)  = LifeBoard::Alive;
+    }
+    // Otherwise just use a random configuration.
+    else
+    {
+        boardCurrent.randomise(generator);
+    }
 
-	// Create a board that represents the updated state of the system making sure it is initially the same as the current board.
-	LifeBoard boardUpdated = boardCurrent;
+    // Create a board that represents the updated state of the system making sure it is initially the same as the current board.
+    LifeBoard boardUpdated = boardCurrent;
 
 
 /*************************************************************************************************************************
 ************************************************* Main Loop *************************************************************
 *************************************************************************************************************************/
-	int playerChoice;
-	
-	while(true)
-	{
-		// Update the board.
-		update(boardUpdated, boardCurrent);
-	
-		// Print the updated board.
-		std::cout << boardUpdated;
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		
+    int counter = 0;
+    while(true)
+    {
+        // Update the board.
+        update(boardUpdated, boardCurrent);
+    
+        // Print the updated board.
+        std::cout << boardUpdated;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+        // If the user has asked for a glider we can calculate its centre of mass.
+        if(vm.count("glider"))
+        {
+      		// The periodic boundary conditions will cause strange values for the centre of mass when the 
+      		// glider crosses a boundary so need to check if the boundary has been crossed.
 
-		// Move the cursor back to the top of the board.
-		for(int row = 0; row < boardCurrent.getRows(); ++row)
-		{
-			std::cout << "\e[A";
-			std::cout << "\r";
-		}
+            if(!boardUpdated.isBoundaryLive())
+            {
+            std::pair<double,double> centreOfMass = boardUpdated.centreOfMass();
 
-		// Swap the boards so no unnecessary copying takes place.
-		std::swap(boardUpdated, boardCurrent);
+            // Print them to the file.
+            comOutput << counter++ << ' ' << centreOfMass.first << ' ' << centreOfMass.second << std::endl;
+            }
+            else
+            {
+                counter++;
+            }
 
-		// Check if the system has reached a steady state and if it has break the loop.
+        }
 
-	}
+        // Move the cursor back to the top of the board.
+        for(int row = 0; row < boardCurrent.getRows(); ++row)
+        {
+            std::cout << "\e[A";
+            std::cout << "\r";
+        }
+
+        // Swap the boards so no unnecessary copying takes place.
+        std::swap(boardUpdated, boardCurrent);
+
+        // Check if the system has reached a steady state and if it has break the loop.
+    }
 
 /*************************************************************************************************************************
 ************************************************* Clean Up *************************************************************
 *************************************************************************************************************************/
 
-	return 0;
+    return 0;
 }
